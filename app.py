@@ -6,6 +6,7 @@ import xmltv
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, redirect, render_template
 
+import magiogo
 from magiogo import *
 from parse_season_number import parse_season_number
 
@@ -25,6 +26,8 @@ def index():
 @app.route('/channel/<channel_id>')
 def channel_redirect(channel_id):
     stream_info = magio.channel_stream_info(channel_id)
+    if magiogo.DEBUG:
+        print('Returned redirect url: ', stream_info.url)
     return redirect(stream_info.url, code=303)
 
 

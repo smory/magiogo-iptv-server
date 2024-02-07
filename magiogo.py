@@ -1,7 +1,6 @@
-import datetime
-import random
 import time
 import requests
+from urllib3.connection import HTTPConnection
 
 try:
     from typing import List
@@ -14,7 +13,14 @@ from requests.adapters import HTTPAdapter
 from client import *
 import datetime
 
-UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.83 Safari/537.36'
+TYPE = 'OTT_MAC'  # OTT_STB, OTT_MAC, OTT_ANDROID
+
+DEBUG = True
+USE_HIGHER_DASH = True
+
+if DEBUG:
+    HTTPConnection.debuglevel = 1
 
 
 class MagioGoException(Exception):
@@ -62,7 +68,7 @@ class MagioGo(IPTVClient):
         self._user_name = user_name
         self._password = password
         self._quality = quality
-        self._device = 'Magio IPTV Server'
+        self._device = 'Web Browser'
         self._data = MagioGoSessionData()
         super().__init__(storage_dir, '%s.session' % self._user_name)
 
@@ -117,9 +123,9 @@ class MagioGo(IPTVClient):
 
         if not self._data.access_token:
             self._post('https://skgo.magio.tv/v2/auth/init',
-                       params={'dsid': 'Netscape.' + str(int(time.time())) + '.' + str(random.random()),
+                       params={'dsid': 'Netscape.' + '1602683650914.0.7026397769568202', #+ str(int(time.time())) + '.' + str(random.random()),
                                'deviceName': self._device,
-                               'deviceType': 'OTT_STB',
+                               'deviceType': TYPE,
                                'osVersion': '0.0.0',
                                'appVersion': '0.0.0',
                                'language': 'SK'},
@@ -163,16 +169,24 @@ class MagioGo(IPTVClient):
         self._login()
         quality = quality_override or self._quality
         resp = self._get('https://skgo.magio.tv/v2/television/stream-url',
-                         params={'service': 'TIMESHIFT',
+                         params={'service': 'LIVE',
                                  'name': self._device,
-                                 'devtype': 'OTT_STB',
+                                 'devtype': TYPE,
                                  'id': channel_id,
                                  'prof': quality,
                                  'ecid': '',
                                  'drm': 'verimatrix'},
                          headers=self._auth_headers())
         si = StreamInfo()
-        si.url = resp['url']
+        if DEBUG:
+            print('Found url: ', resp['url'])
+            print('Url after replace: ', resp['url'].replace("OTT_SMALLSCREEN_DASH_10", "OTT_BIGSCREEN_DASH_4_4K"))
+
+        if USE_HIGHER_DASH and quality_override is None:
+            si.url = resp['url'].replace("OTT_SMALLSCREEN_DASH_10", "OTT_BIGSCREEN_DASH_4_4K")
+        else:
+            si.url = resp['url']
+
         si.manifest_type = 'mpd' if si.url.find('.mpd') > 0 else 'm3u'
         si.user_agent = UA
 
@@ -190,7 +204,7 @@ class MagioGo(IPTVClient):
         resp = self._get('https://skgo.magio.tv/v2/television/stream-url',
                          params={'service': 'ARCHIVE',
                                  'name': self._device,
-                                 'devtype': 'OTT_STB',
+                                 'devtype': TYPE,
                                  'id': programme_id,
                                  'prof': self._quality,
                                  'ecid': '',
