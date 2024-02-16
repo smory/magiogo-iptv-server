@@ -18,9 +18,10 @@ import datetime
 UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.83 Safari/537.36'
 TYPE = 'OTT_MAC'  # OTT_STB, OTT_MAC, OTT_ANDROID
 
-DEBUG = False
-USE_HIGHER_DASH = False
-MODIFY_MANIFEST = False
+DEBUG = "true" == os.getenv("MAGIO_DEBUG")
+USE_HIGHER_DASH = os.getenv("MAGIO_USE_HIGHER_DASH") == "true"
+REMOVE_SMALLER_QUALITY_DASH = True #os.getenv("MAGIO_REMOVE_SMALLER_QUALITY_DASH") == "true"
+DASH_LOCAL_MANIFEST = os.getenv("MAGIO_LOCAL_DASH_MANIFEST") == "true"
 
 if DEBUG:
     HTTPConnection.debuglevel = 1
@@ -182,11 +183,12 @@ class MagioGo(IPTVClient):
                          headers=self._auth_headers())
         si = StreamInfo()
         if DEBUG:
-            print('Found url: ', resp['url'])
-            print('Url after replace: ', resp['url'].replace("OTT_SMALLSCREEN_DASH_10", "OTT_BIGSCREEN_DASH_4_4K"))
+            print('Stream url:" ', resp['url'])
 
         if USE_HIGHER_DASH and quality_override is None:
             si.url = resp['url'].replace("OTT_SMALLSCREEN_DASH_10", "OTT_BIGSCREEN_DASH_4_4K")
+            if DEBUG:
+                print('Replaced stream url: ', si.url)
         else:
             si.url = resp['url']
 
@@ -200,10 +202,10 @@ class MagioGo(IPTVClient):
             if r.status_code == 404:
                 return self.channel_stream_info(channel_id, programme_id, MagioQuality.medium)
 
-        if MODIFY_MANIFEST and si.manifest_type == 'mpd':
+        if (REMOVE_SMALLER_QUALITY_DASH or DASH_LOCAL_MANIFEST) and si.manifest_type == 'mpd':
             r = requests.get(si.url)
             if r.status_code == 200:
-                manifest = mpd_helper.modify_manifest(r.text, si.url)
+                manifest = mpd_helper.modify_manifest(r.text, si.url, REMOVE_SMALLER_QUALITY_DASH)
                 si.modified_manifest = manifest
 
         return si

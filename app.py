@@ -6,14 +6,19 @@ import xmltv
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, redirect, render_template
 
-import magiogo
 from magiogo import *
 from parse_season_number import parse_season_number
 
-app = Flask(__name__, static_url_path="/", static_folder="public")
+DEBUG = "true" == os.getenv("MAGIO_DEBUG")
+HASIO = os.getenv("HASIO") is not None
+PUBLIC_FOLDER = "/data/public" if HASIO else "public"
+WRITE_KODI_PROPS = "true" == os.getenv("MAGIO_WRITE_KODI_PROPS")
+KODI_PROPS = os.getenv("MAGIO_KODI_PROPS", "").replace("%%new_line%%", "\r\n")
+
+app = Flask(__name__, static_url_path="/", static_folder=PUBLIC_FOLDER)
 
 # Ensure public dir exists
-Path("public").mkdir(exist_ok=True)
+Path(PUBLIC_FOLDER).mkdir(exist_ok=True)
 
 last_refresh = None
 
@@ -26,14 +31,14 @@ def index():
 @app.route('/channel/<channel_id>')
 def channel_redirect(channel_id):
     stream_info = magio.channel_stream_info(channel_id)
-    if magiogo.DEBUG:
+    if DEBUG:
         print('Returned redirect url: ', stream_info.url)
-    print(stream_info.modified_manifest)
     if stream_info.modified_manifest:
-        print("returning modified manifest: ", stream_info.modified_manifest)
-
+        if DEBUG:
+            print("returning modified manifest: ", stream_info.modified_manifest)
         return stream_info.modified_manifest
-    print("doing redirect")
+    if DEBUG:
+        print("doing redirect")
     return redirect(stream_info.url, code=303)
 
 
@@ -50,11 +55,13 @@ def gzip_file(file_path):
 
 def generate_m3u8(channels):
     magio_iptv_server_public_url = os.environ.get('MAGIO_SERVER_PUBLIC_URL', "http://127.0.0.1:5000")
-    with open("public/magioPlaylist.m3u8", "w", encoding="utf-8") as text_file:
-        text_file.write("#EXTM3U\n")
+    with open(PUBLIC_FOLDER + "/magioPlaylist.m3u8", "w", encoding="utf-8") as text_file:
+        text_file.write("#EXTM3U\r\n")
         for channel in channels:
-            text_file.write(f'#EXTINF:-1 tvg-id="{channel.id}" tvg-logo="{channel.logo}",{channel.name}\n')
-            text_file.write(f"{magio_iptv_server_public_url}/channel/{channel.id}\n")
+            text_file.write(f'#EXTINF:-1 tvg-id="{channel.id}" tvg-logo="{channel.logo}",{channel.name}\r\n')
+            if(WRITE_KODI_PROPS):
+                text_file.write(KODI_PROPS)
+            text_file.write(f"{magio_iptv_server_public_url}/channel/{channel.id}\r\n")
 
 
 def generate_xmltv(channels):
@@ -62,7 +69,7 @@ def generate_xmltv(channels):
     date_to = datetime.datetime.now() + datetime.timedelta(days=int(os.environ.get('MAGIO_GUIDE_DAYS', 7)))
     channel_ids = list(map(lambda c: c.id, channels))
     epg = magio.epg(channel_ids, date_from, date_to)
-    with open("public/magioGuide.xmltv", "wb") as guide_file:
+    with open(PUBLIC_FOLDER + "/magioGuide.xmltv", "wb") as guide_file:
         writer = xmltv.Writer(
             date=datetime.datetime.now().strftime("%Y%m%d%H%M%S"),
             generator_info_name="MagioGoIPTVServer",
@@ -108,7 +115,7 @@ def generate_xmltv(channels):
 
         writer.write(guide_file, True)
     # Gzip the guide file
-    gzip_file("public/magioGuide.xmltv")
+    gzip_file(PUBLIC_FOLDER + "/magioGuide.xmltv")
 
 
 def refresh():
@@ -133,7 +140,8 @@ print(f"Stream quality configured to: {qualityString} ({quality})")
 
 # Initial playlist and xmltv load
 print("Logging in to Magio Go TV")
-magio = MagioGo("./storage", os.environ.get('MAGIO_USERNAME'), os.environ.get('MAGIO_PASSWORD'), quality)
+storage_folder = "/data/storage" if HASIO else "./storage"
+magio = MagioGo(storage_folder, os.environ.get('MAGIO_USERNAME'), os.environ.get('MAGIO_PASSWORD'), quality)
 refresh()
 
 # Load new playlist and xmltv everyday
