@@ -28,6 +28,12 @@ def channel_redirect(channel_id):
     stream_info = magio.channel_stream_info(channel_id)
     if magiogo.DEBUG:
         print('Returned redirect url: ', stream_info.url)
+    print(stream_info.modified_manifest)
+    if stream_info.modified_manifest:
+        print("returning modified manifest: ", stream_info.modified_manifest)
+
+        return stream_info.modified_manifest
+    print("doing redirect")
     return redirect(stream_info.url, code=303)
 
 

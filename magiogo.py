@@ -2,6 +2,8 @@ import time
 import requests
 from urllib3.connection import HTTPConnection
 
+import mpd_helper
+
 try:
     from typing import List
 except:
@@ -16,8 +18,9 @@ import datetime
 UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.83 Safari/537.36'
 TYPE = 'OTT_MAC'  # OTT_STB, OTT_MAC, OTT_ANDROID
 
-DEBUG = True
-USE_HIGHER_DASH = True
+DEBUG = False
+USE_HIGHER_DASH = False
+MODIFY_MANIFEST = False
 
 if DEBUG:
     HTTPConnection.debuglevel = 1
@@ -196,6 +199,12 @@ class MagioGo(IPTVClient):
             r = requests.get(si.url)
             if r.status_code == 404:
                 return self.channel_stream_info(channel_id, programme_id, MagioQuality.medium)
+
+        if MODIFY_MANIFEST and si.manifest_type == 'mpd':
+            r = requests.get(si.url)
+            if r.status_code == 200:
+                manifest = mpd_helper.modify_manifest(r.text, si.url)
+                si.modified_manifest = manifest
 
         return si
 

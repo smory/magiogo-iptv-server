@@ -61,6 +61,7 @@ class StreamInfo(Base):
         self.max_bandwidth = None
         self.user_agent = ''
         self.headers = {}
+        self.modified_manifest = None
 
 
 class Programme(Base):
