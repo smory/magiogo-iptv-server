@@ -16,11 +16,13 @@ from client import *
 import datetime
 
 UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.83 Safari/537.36'
-TYPE = 'OTT_MAC'  # OTT_STB, OTT_MAC, OTT_ANDROID
+OTT_TYPE = 'OTT_MAC'  # OTT_STB, OTT_MAC, OTT_ANDROID
+OTT_TYPE_FOR_STREAM = os.getenv("MAGIO_OTT_TYPE_STREAM", OTT_TYPE)
+STREAM_SERVICE_TYPE = os.getenv("MAGIO_STREAM_TYPE", "LIVE")
 
 DEBUG = "true" == os.getenv("MAGIO_DEBUG")
 USE_HIGHER_DASH = os.getenv("MAGIO_USE_HIGHER_DASH") == "true"
-REMOVE_SMALLER_QUALITY_DASH = True #os.getenv("MAGIO_REMOVE_SMALLER_QUALITY_DASH") == "true"
+REMOVE_SMALLER_QUALITY_DASH = os.getenv("MAGIO_REMOVE_SMALLER_QUALITY_DASH") == "true"
 DASH_LOCAL_MANIFEST = os.getenv("MAGIO_LOCAL_DASH_MANIFEST") == "true"
 
 if DEBUG:
@@ -129,7 +131,7 @@ class MagioGo(IPTVClient):
             self._post('https://skgo.magio.tv/v2/auth/init',
                        params={'dsid': 'Netscape.' + '1602683650914.0.7026397769568202', #+ str(int(time.time())) + '.' + str(random.random()),
                                'deviceName': self._device,
-                               'deviceType': TYPE,
+                               'deviceType': OTT_TYPE,
                                'osVersion': '0.0.0',
                                'appVersion': '0.0.0',
                                'language': 'SK'},
@@ -173,9 +175,9 @@ class MagioGo(IPTVClient):
         self._login()
         quality = quality_override or self._quality
         resp = self._get('https://skgo.magio.tv/v2/television/stream-url',
-                         params={'service': 'LIVE',
+                         params={'service': STREAM_SERVICE_TYPE,
                                  'name': self._device,
-                                 'devtype': TYPE,
+                                 'devtype': OTT_TYPE_FOR_STREAM,
                                  'id': channel_id,
                                  'prof': quality,
                                  'ecid': '',
@@ -215,7 +217,7 @@ class MagioGo(IPTVClient):
         resp = self._get('https://skgo.magio.tv/v2/television/stream-url',
                          params={'service': 'ARCHIVE',
                                  'name': self._device,
-                                 'devtype': TYPE,
+                                 'devtype': OTT_TYPE,
                                  'id': programme_id,
                                  'prof': self._quality,
                                  'ecid': '',
