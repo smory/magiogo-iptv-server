@@ -17,6 +17,11 @@ def parse_season_number(show_title):
         # Remove leading space and trailing dot if present
         roman_num = roman_num.strip(' .')
         # Convert roman numeral to arabic
-        return show_title_sans_season, roman.fromRoman(roman_num)
+        try:
+            arabic_num = roman.fromRoman(roman_num)
+        except:
+            print("roman parse exception:" + show_title + " : " + roman_num)
+            arabic_num = None
+        return show_title_sans_season, arabic_num
     else:
         return show_title, None
